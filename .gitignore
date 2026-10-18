@@ -1,0 +1,20 @@
+node_modules/
+dist/
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.log
+supabase-live-backup/
+
+# Additional local secrets and backups
+.env.*
+!.env.example
+*.sql.bak
+*.dump
+
+
+supabase/.temp/
+
+supabase/.temp/
