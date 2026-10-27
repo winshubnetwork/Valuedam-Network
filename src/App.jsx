@@ -1,3 +1,4 @@
+
 import React, { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
@@ -26,9 +27,42 @@ const Dashboard = lazy(() => import('./pages/admin/Dashboard'));
 const Homepage = lazy(() => import('./pages/admin/Homepage'));
 const ServicesAdmin = lazy(() => import('./pages/admin/ServicesAdmin'));
 const PortfolioAdmin = lazy(() => import('./pages/admin/PortfolioAdmin'));
-const TestimonialsAdmin = lazy(() => import('./pages/admin/TestimonialsAdmin'));
+const TestimonialsAdmin = lazy(
+  () => import('./pages/admin/TestimonialsAdmin')
+);
 const Settings = lazy(() => import('./pages/admin/Settings'));
 const ServiceRequests = lazy(() => import('./admin/ServiceRequests'));
+
+// Valuedam Store admin
+const StoreProducts = lazy(() => import('./pages/admin/StoreProducts'));
+const StoreOrders = lazy(() => import('./pages/admin/StoreOrders'));
+const StorePaymentSettings = lazy(
+  () => import('./pages/admin/StorePaymentSettings')
+);
+const StoreAffiliates = lazy(
+  () => import('./pages/admin/StoreAffiliates')
+);
+const StoreAffiliateSettings = lazy(
+  () => import('./pages/admin/StoreAffiliateSettings')
+);
+const StoreAffiliateRules = lazy(
+  () => import('./pages/admin/StoreAffiliateRules')
+);
+const StoreAffiliateSales = lazy(
+  () => import('./pages/admin/StoreAffiliateSales')
+);
+const StoreAffiliateLedger = lazy(
+  () => import('./pages/admin/StoreAffiliateLedger')
+);
+const StoreAffiliateCommissions = lazy(
+  () => import('./pages/admin/StoreAffiliateCommissions')
+);
+const StoreAffiliateRecurringPayments = lazy(
+  () => import('./pages/admin/StoreAffiliateRecurringPayments')
+);
+const StoreAffiliatePayouts = lazy(
+  () => import('./pages/admin/StoreAffiliatePayouts')
+);
 
 // Public pages
 const Home = lazy(() => import('./pages/Home'));
@@ -40,6 +74,13 @@ const Blog = lazy(() => import('./pages/Blog'));
 const BlogPost = lazy(() => import('./pages/BlogPost'));
 const Contact = lazy(() => import('./pages/Contact'));
 const RequestService = lazy(() => import('./pages/RequestService'));
+
+// Valuedam Store public pages
+const StoreHome = lazy(() => import('./store/StoreHome'));
+const StoreProduct = lazy(() => import('./store/StoreProduct'));
+const StoreCart = lazy(() => import('./store/StoreCart'));
+const StoreCheckout = lazy(() => import('./store/StoreCheckout'));
+
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 function RouteLoading() {
@@ -76,20 +117,14 @@ function RouteLoading() {
 }
 
 function LazyRoute({ children }) {
-  return (
-    <Suspense fallback={<RouteLoading />}>
-      {children}
-    </Suspense>
-  );
+  return <Suspense fallback={<RouteLoading />}>{children}</Suspense>;
 }
 
 export default function App() {
   return (
     <Routes>
-
       {/* PUBLIC WEBSITE */}
       <Route element={<Layout />}>
-
         <Route
           path="/"
           element={
@@ -171,6 +206,43 @@ export default function App() {
           }
         />
 
+        {/* VALUEDAM ONLINE STORE */}
+        <Route
+          path="/store"
+          element={
+            <LazyRoute>
+              <StoreHome />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/store/product/:slug"
+          element={
+            <LazyRoute>
+              <StoreProduct />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/store/cart"
+          element={
+            <LazyRoute>
+              <StoreCart />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/store/checkout"
+          element={
+            <LazyRoute>
+              <StoreCheckout />
+            </LazyRoute>
+          }
+        />
+
         <Route
           path="*"
           element={
@@ -179,7 +251,6 @@ export default function App() {
             </LazyRoute>
           }
         />
-
       </Route>
 
       {/* ADMIN LOGIN */}
@@ -200,7 +271,6 @@ export default function App() {
           </LazyRoute>
         }
       >
-
         <Route
           path="/admin"
           element={
@@ -354,10 +424,108 @@ export default function App() {
           }
         />
 
+        {/* VALUEDAM STORE ADMIN */}
+        <Route
+          path="/admin/store/products"
+          element={
+            <LazyRoute>
+              <StoreProducts />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/orders"
+          element={
+            <LazyRoute>
+              <StoreOrders />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/payment-settings"
+          element={
+            <LazyRoute>
+              <StorePaymentSettings />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliates"
+          element={
+            <LazyRoute>
+              <StoreAffiliates />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliates/settings"
+          element={
+            <LazyRoute>
+              <StoreAffiliateSettings />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-rules"
+          element={
+            <LazyRoute>
+              <StoreAffiliateRules />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-sales"
+          element={
+            <LazyRoute>
+              <StoreAffiliateSales />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-ledger"
+          element={
+            <LazyRoute>
+              <StoreAffiliateLedger />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-commissions"
+          element={
+            <LazyRoute>
+              <StoreAffiliateCommissions />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-recurring-payments"
+          element={
+            <LazyRoute>
+              <StoreAffiliateRecurringPayments />
+            </LazyRoute>
+          }
+        />
+
+        <Route
+          path="/admin/store/affiliate-payouts"
+          element={
+            <LazyRoute>
+              <StoreAffiliatePayouts />
+            </LazyRoute>
+          }
+        />
       </Route>
 
       {/* STANDALONE ADMIN PAGES */}
-
       <Route
         path="/admin/jobs/view"
         element={
@@ -393,7 +561,6 @@ export default function App() {
           </LazyRoute>
         }
       />
-
     </Routes>
   );
 }

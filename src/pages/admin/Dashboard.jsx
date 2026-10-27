@@ -30,6 +30,23 @@ function formatTime(value) {
   });
 }
 
+function formatCurrency(value, currency = "NGN") {
+  const normalizedCurrency = String(currency || "NGN").toUpperCase();
+  const safeCurrency = /^[A-Z]{3}$/.test(normalizedCurrency)
+    ? normalizedCurrency
+    : "NGN";
+
+  try {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: safeCurrency,
+      maximumFractionDigits: 2,
+    }).format(Number(value) || 0);
+  } catch {
+    return `₦${(Number(value) || 0).toLocaleString("en-NG")}`;
+  }
+}
+
 function startOfToday() {
   const date = new Date();
   date.setHours(0, 0, 0, 0);
@@ -365,6 +382,18 @@ export default function Dashboard() {
   const [messages, setMessages] = useState([]);
   const [requests, setRequests] = useState([]);
   const [activities, setActivities] = useState([]);
+  const [storeStats, setStoreStats] = useState({
+    orders: 0,
+    products: 0,
+    pendingOrders: 0,
+    unpaidOrders: 0,
+    paidSales: 0,
+    storeName: "Valuedam Online Store",
+    storeEnabled: false,
+    bankTransferEnabled: false,
+    currency: "NGN",
+    error: "",
+  });
 
   async function loadDashboard(refresh = false) {
     try {
@@ -381,6 +410,9 @@ export default function Dashboard() {
         messagesResult,
         requestsResult,
         activitiesResult,
+        storeOrdersResult,
+        storeProductsResult,
+        storeSettingsResult,
       ] = await Promise.all([
         supabase
           .from("crm_customers")
@@ -413,6 +445,23 @@ export default function Dashboard() {
           )
           .order("created_at", { ascending: false })
           .limit(10),
+
+        // Store overview queries are handled separately so a Store permission
+        // or schema issue does not stop the existing CRM dashboard from loading.
+        supabase
+          .from("store_orders")
+          .select("id, total, order_status, payment_status"),
+
+        supabase
+          .from("store_products")
+          .select("id, status"),
+
+        supabase
+          .from("store_settings")
+          .select("store_name, store_enabled, bank_transfer_enabled, currency")
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       const firstError = [
@@ -430,6 +479,58 @@ export default function Dashboard() {
       setMessages(messagesResult.data || []);
       setRequests(requestsResult.data || []);
       setActivities(activitiesResult.data || []);
+
+      const storeError = [
+        storeOrdersResult.error,
+        storeProductsResult.error,
+        storeSettingsResult.error,
+      ].find(Boolean);
+
+      if (storeError) {
+        console.error("Store dashboard overview error:", storeError);
+        setStoreStats((current) => ({
+          ...current,
+          error: storeError.message || "Unable to load Store statistics.",
+        }));
+      } else {
+        const storeOrders = storeOrdersResult.data || [];
+        const storeProducts = storeProductsResult.data || [];
+        const storeSettings = storeSettingsResult.data || null;
+
+        const normalizedOrderStatus = (order) =>
+          String(order.order_status || "").toLowerCase();
+        const normalizedPaymentStatus = (order) =>
+          String(order.payment_status || "").toLowerCase();
+
+        setStoreStats({
+          orders: storeOrders.length,
+          products: storeProducts.filter(
+            (product) => String(product.status || "").toLowerCase() === "active"
+          ).length,
+          pendingOrders: storeOrders.filter((order) =>
+            ["pending", "confirmed", "processing"].includes(
+              normalizedOrderStatus(order)
+            )
+          ).length,
+          unpaidOrders: storeOrders.filter(
+            (order) =>
+              normalizedPaymentStatus(order) === "unpaid" &&
+              normalizedOrderStatus(order) !== "cancelled"
+          ).length,
+          paidSales: storeOrders
+            .filter(
+              (order) =>
+                normalizedPaymentStatus(order) === "paid" &&
+                normalizedOrderStatus(order) !== "cancelled"
+            )
+            .reduce((total, order) => total + (Number(order.total) || 0), 0),
+          storeName: storeSettings?.store_name || "Valuedam Online Store",
+          storeEnabled: Boolean(storeSettings?.store_enabled),
+          bankTransferEnabled: Boolean(storeSettings?.bank_transfer_enabled),
+          currency: storeSettings?.currency || "NGN",
+          error: "",
+        });
+      }
     } catch (err) {
       console.error("CRM dashboard error:", err);
       setError(err.message || "Unable to load dashboard.");
@@ -730,6 +831,149 @@ export default function Dashboard() {
           color="#dc2626"
         />
       </div>
+
+      {/* Store Overview */}
+      <section className="crm-dashboard-card" style={{ marginBottom: 18 }}>
+        <div
+          style={{
+            padding: "16px 20px",
+            borderBottom: "1px solid #eef0f3",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#111827",
+              }}
+            >
+              {storeStats.storeName}
+            </div>
+            <div style={{ marginTop: 3, fontSize: 11, color: "#9ca3af" }}>
+              Store orders, products, and payment overview
+            </div>
+          </div>
+          <StatusBadge
+            status={storeStats.error ? "Status unavailable" : storeStats.storeEnabled ? "Active" : "Inactive"}
+          />
+        </div>
+
+        {storeStats.error && (
+          <div
+            role="status"
+            style={{
+              margin: "14px 18px 0",
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #fed7aa",
+              background: "#fff7ed",
+              color: "#9a3412",
+              fontSize: 11,
+              lineHeight: 1.5,
+            }}
+          >
+            Store statistics could not be loaded: {storeStats.error}. Your CRM dashboard is still available. Check the Store table permissions and try refreshing.
+          </div>
+        )}
+
+        <div className="crm-dashboard-grid-4" style={{ padding: 16 }}>
+          <StatCard
+            icon="clipboard"
+            label="Total Orders"
+            value={storeStats.orders}
+            note="All recorded orders"
+            href="/admin/store/orders"
+            background="#eff6ff"
+            color="#2563eb"
+          />
+          <StatCard
+            icon="users"
+            label="Active Products"
+            value={storeStats.products}
+            note="Products marked active"
+            href="/admin/store/products"
+            background="#ecfdf5"
+            color="#059669"
+          />
+          <StatCard
+            icon="clock"
+            label="Pending Orders"
+            value={storeStats.pendingOrders}
+            note="Pending, confirmed, or processing"
+            href="/admin/store/orders"
+            background="#fff7ed"
+            color="#ea580c"
+          />
+          <StatCard
+            icon="alert"
+            label="Unpaid Orders"
+            value={storeStats.unpaidOrders}
+            note="Unpaid, excluding cancelled"
+            href="/admin/store/orders"
+            background="#fef2f2"
+            color="#dc2626"
+          />
+        </div>
+
+        <div
+          style={{
+            padding: "14px 18px 16px",
+            borderTop: "1px solid #f0f1f3",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 14,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 10, color: "#9ca3af", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".05em" }}>
+              Paid sales (excluding cancelled orders)
+            </div>
+            <div style={{ marginTop: 4, fontSize: 22, fontWeight: 800, color: "#111827" }}>
+              {formatCurrency(storeStats.paidSales, storeStats.currency)}
+            </div>
+            <div style={{ marginTop: 4, fontSize: 10, color: "#9ca3af" }}>
+              Bank transfer: {storeStats.error ? "Status unavailable" : storeStats.bankTransferEnabled ? "Enabled" : "Disabled"}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link to="/admin/store/orders" className="crm-dashboard-action">
+              <Icon type="clipboard" size={13} /> Orders
+            </Link>
+            <Link to="/admin/store/products" className="crm-dashboard-action">
+              <Icon type="users" size={13} /> Products
+            </Link>
+            <Link to="/admin/store/payment-settings" className="crm-dashboard-action">
+              Payment settings
+              <Icon type="arrow" size={13} />
+            </Link>
+            <Link to="/admin/store/affiliates" className="crm-dashboard-action">
+  <Icon type="users" size={13} /> Affiliates
+  <Icon type="arrow" size={13} />
+</Link>
+<Link to="/admin/store/affiliate-rules">
+  Commission Rules
+</Link>
+<Link to="/admin/store/affiliate-sales">
+  Affiliate Sales
+</Link>
+<Link to="/admin/store/affiliate-ledger">
+  Affiliate Ledger
+</Link>
+<Link to="/admin/store/affiliate-commissions">
+  Commission Review
+</Link>
+          </div>
+        </div>
+      </section>
 
       {/* Pipeline + Followups */}
       <div className="crm-dashboard-grid-main" style={{ marginBottom: 18 }}>
